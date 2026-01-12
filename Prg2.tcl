@@ -1,0 +1,73 @@
+/*
+set ns [ new Smulator ]
+
+set tr [ open out .tr w ]
+$ns trace-all $tr
+
+set nam [ pen out.nam w ]
+$ns namtrace-all $nam
+
+set n0 [ $ns node ]
+set n1 [ $ns node ]
+set n2 [ $ns node ]
+set n2 [ $ns node ]
+set n3 [ $ns node ]
+set n4 [ $ns node ]
+set n5 [ $ns node ]
+
+$ns duplex-link $n0 $n1 0.1Mb 10ms DropTail
+$ns duplex-link $n1 $n2 0.2Mb 10ms DropTail
+$ns duplex-link $n2 $n3 0.3Mb 10ms DropTail
+$ns duplex-link $n3 $n4 0.4Mb 10ms DropTail
+$ns duplex-link $n4 $n5 0.5Mb 10ms DropTail
+
+$ns queue-limit $n0 $n1 10
+$ns queue-limit $n1 $n2 10
+$ns queue-limit $n2 $n3 10
+$ns queue-limit $n3 $n4 10
+$ns queue-limit $n4 $n5 10
+
+Agent/Ping instproc recv { from rtt } {
+$self instvar node_
+puts "node [$node_ id] recivied ping reply from $from RTT= $rtt ms"
+}
+
+set p0 [ new Agent/Ping ]
+$ns attach-agent $n0 $p0
+
+set p1 [ new Agent/Ping ]
+$ns attach-agent $n5 $p1
+
+$ns connect $p0 $p1
+
+set tcp [ new Agent/TCP ]
+set sink [ new Agent/TCPSink ]
+$ns attach-agent $n0 $tcp
+$ns attach-agent $n5 $sink
+$ns connect $tcp $sink
+
+set cbr [ new Application/Traffic/CBR ]
+$ns attach-agent $tcp
+
+proc finish {} {
+    global ns nam tr 
+    $ns flush-trace
+    close $tr
+    close $nam
+    exec nam out.nam &
+    exec echo "The number of ping messages lost is:" &
+    exec grep "^d" out.tr | grep -c "ping" &
+    exit 0
+}
+
+$ns at 0.2 "$p0 send"
+$ns at 0.4 "$p1 send"
+$ns at 0.6 "$cbr start"
+$ns at 0.8 "$p0 send"
+$ns at 1.0 "$p1 send"
+$ns at 1.2 "$cbr stop"
+$ns at 1.4 "$p0 send"
+$ns at 1.6 "$p1 send"
+
+$ns at 1.8 "finish"
+$ns run
